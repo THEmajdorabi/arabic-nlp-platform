@@ -1,0 +1,45 @@
+# api + prometheus + grafana. `docker compose up -d`, then:
+#   API      http://localhost:8000/docs
+#   Grafana  http://localhost:3000   (admin / admin)
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # The model directory is mounted, not baked into the image.
+      MODEL_DIR: /models/current
+      BACKEND: onnx
+    volumes:
+      - ./artifacts/onnx/int8:/models/current:ro
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      # Provisioned as code: the dashboard is in git, not clicked together and
+      # lost when the container is recreated.
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus

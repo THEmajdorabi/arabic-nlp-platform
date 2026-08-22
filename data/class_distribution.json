@@ -1,0 +1,30 @@
+{
+  "rows_raw": 147725,
+  "rows_clean": 147725,
+  "dropped_short": 0,
+  "dropped_empty": 0,
+  "dropped_duplicate": 0,
+  "imbalance_ratio": 4.99,
+  "classes": {
+    "EG": {
+      "n": 57636,
+      "share": 0.3902
+    },
+    "LY": {
+      "n": 36499,
+      "share": 0.2471
+    },
+    "LB": {
+      "n": 27617,
+      "share": 0.1869
+    },
+    "SD": {
+      "n": 14434,
+      "share": 0.0977
+    },
+    "MA": {
+      "n": 11539,
+      "share": 0.0781
+    }
+  }
+}

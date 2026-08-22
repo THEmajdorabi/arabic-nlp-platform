@@ -1,0 +1,29 @@
+groups:
+  - name: dialect-model
+    rules:
+      # The drift gauge crossing its threshold. `for: 10m` because a single
+      # scrape crossing the line is noise; ten minutes of it is a signal.
+      - alert: InputDriftDetected
+        expr: dialect_drift_share >= 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Input distribution has drifted"
+          description: >-
+            {{ $value | humanizePercentage }} of monitored columns are drifting
+            against the training reference. See the retraining policy in the
+            README before acting.
+
+      # Confidence collapsing is the leading indicator of out-of-distribution
+      # input, and it fires earlier than the drift job's schedule.
+      - alert: MeanConfidenceCollapsed
+        expr: dialect_mean_confidence < 0.55
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mean prediction confidence has fallen"
+          description: >-
+            Mean confidence is {{ $value }}. The model is being asked about
+            text it does not recognise.

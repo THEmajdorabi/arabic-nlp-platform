@@ -1,0 +1,116 @@
+# Dataset, models and hyperparameters. Nothing here is hardcoded in Python,
+# because every number below is something a reader may need to change and
+# something a reported result depends on.
+#
+# Model IDs checked against the Hugging Face Hub on 2026-08-23.
+
+dataset:
+  # Chosen on 2026-08-23. See data/README.md for the alternatives considered
+  # and why they were rejected.
+  id: "amgadhasan/arabic_tweets_dialects"
+  license: "MIT"
+  downloaded: "2026-08-23"
+  text_column: "text"
+  label_column: "dialect"
+  # The dataset ships one split. The train/validation/test split used here is
+  # made by this repo, stratified and seeded, so it is reproducible from the
+  # config rather than inherited from an upload nobody controls.
+  source_split: "train"
+  # ISO 3166 country codes, in the dataset's own vocabulary.
+  labels:
+    EG: "Egyptian"
+    LY: "Libyan"
+    LB: "Lebanese"
+    SD: "Sudanese"
+    MA: "Moroccan"
+
+split:
+  seed: 20260823
+  # Stratified, so the 39%/7.8% imbalance is preserved in every split rather
+  # than being smoothed away by chance in the small ones.
+  test_size: 0.15
+  validation_size: 0.15
+  # A cap on the training set, so a full run finishes on one consumer GPU.
+  # Set to 0 for the whole thing. Recorded in the README next to every number
+  # it affects.
+  max_train_rows: 60000
+
+preprocess:
+  # Twitter artefacts carry no dialect signal and a lot of vocabulary. Handles
+  # and URLs are replaced rather than deleted so the token count stays honest.
+  replace_mentions: true
+  replace_urls: true
+  strip_repeated_chars: 3
+  min_chars: 5
+  # Arabic normalization is OFF by default for the transformer. MARBERT was
+  # pretrained on lightly processed text, and folding hamza and tashkeel
+  # removes signal it learned. The baseline gets its own setting below, and
+  # both are ablated rather than assumed. See DECISIONS.md.
+  normalize_arabic: false
+
+baseline:
+  # Character n-grams are the point: dialect markers in Arabic are often
+  # sub-word (prefixes like "ب-", "ح-", negation circumfixes), so a word-level
+  # model misses most of them.
+  char_ngram_range: [3, 5]
+  char_max_features: 300000
+  word_max_features: 100000
+  min_df: 2
+  sublinear_tf: true
+  C: 4.0
+  max_iter: 2000
+  class_weight: "balanced"
+  normalize_arabic: true
+
+transformer:
+  # Pretrained on Arabic including dialectal text, which is why it beats
+  # AraBERT on this task. AraBERT is the better choice for MSA-heavy work.
+  base_model: "UBC-NLP/MARBERTv2"
+  max_length: 96
+  batch_size: 32
+  eval_batch_size: 64
+  epochs: 3
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.06
+  fp16: true
+  # Imbalance handling. "class_weights" weights the loss; "oversample"
+  # resamples the minority classes; "none" is the control. All three are run
+  # and reported -- see the README.
+  imbalance: "class_weights"
+  # Three seeds, because one run's number is not a result.
+  seeds: [20260823, 20260824, 20260825]
+  gradient_accumulation_steps: 1
+  early_stopping_patience: 2
+
+onnx:
+  opset: 17
+  # int8 dynamic quantization. Accuracy is re-verified after quantizing and the
+  # delta is reported; an unacceptable delta means keeping fp32, which is a
+  # legitimate outcome.
+  quantize: true
+  benchmark_batch_sizes: [1, 8, 32]
+  benchmark_warmup: 20
+  benchmark_iterations: 100
+
+serving:
+  # Micro-batching: collect requests for up to `max_delay_ms` or `max_batch`
+  # items, whichever comes first, then run one forward pass.
+  max_batch: 32
+  max_delay_ms: 10
+  max_text_chars: 1000
+  request_log: "logs/predictions.jsonl"
+
+drift:
+  # Evidently 0.7 API. See DECISIONS.md for why the version is pinned.
+  reference_rows: 5000
+  window_rows: 500
+  # The gauge Grafana alerts on. A share of monitored columns showing drift.
+  alert_threshold: 0.5
+
+mlflow:
+  # SQLite, not the filesystem store. MLflow 3 put `./mlruns` into maintenance
+  # mode and raises on it unless you set an opt-out env var; a database backend
+  # is the supported path and costs nothing here.
+  tracking_uri: "sqlite:///mlflow.db"
+  experiment: "arabic-dialect-id"

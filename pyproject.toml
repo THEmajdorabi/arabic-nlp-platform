@@ -1,0 +1,79 @@
+[project]
+name = "arabic-nlp-platform"
+version = "0.1.0"
+description = "Arabic dialect identification, from a baseline to a monitored service."
+requires-python = ">=3.12"
+dependencies = [
+    "datasets>=3.0.0",
+    "transformers>=4.45.0",
+    # Trainer refuses to start without it; transformers does not depend on it.
+    "accelerate>=0.26.0",
+    "torch>=2.4.0",
+    "scikit-learn>=1.5.0",
+    "scipy>=1.14.0",
+    "numpy>=1.26.0",
+    "pandas>=2.2.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.1",
+    "structlog>=24.4.0",
+    "joblib>=1.4.0",
+    "matplotlib>=3.9.0",
+    "mlflow>=2.16.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.9.0",
+    "prometheus-fastapi-instrumentator>=7.0.0",
+    "httpx>=0.27.0",
+    # ONNX Runtime support moved out of bare `optimum` in 2.x. Installing
+    # `optimum` alone gives an ImportError on ORTModelForSequenceClassification.
+    "optimum[onnxruntime]>=1.23.0",
+    "onnx>=1.16.0",
+    "onnxruntime>=1.19.0",
+    # Pinned to the 0.7 line deliberately: 0.7 rewrote the API around Report +
+    # Dataset + DataDefinition, and essentially every tutorial online still uses
+    # the 0.4-era `evidently.report.Report` + `ColumnDriftMetric` style, which
+    # does not run here. See DECISIONS.md.
+    "evidently>=0.7.0,<0.8.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "ruff>=0.7.0",
+    "mypy>=1.13.0",
+    "types-PyYAML>=6.0.12",
+    "dvc>=3.55.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/arabic_nlp"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# B008 flags a function call in an argument default. `Depends(...)` in a
+# signature is FastAPI's dependency-injection syntax; FastAPI reads it off the
+# signature and never evaluates it as a Python default.
+"src/arabic_nlp/serving/app.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: needs a GPU, a downloaded dataset, or a running service; excluded from `make test`",
+    "slow: takes more than a few seconds",
+]
+addopts = "-m 'not integration' --strict-markers"

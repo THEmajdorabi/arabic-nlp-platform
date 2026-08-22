@@ -1,0 +1,26 @@
+.env
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Data and artefacts are DVC-tracked or regenerable, never committed.
+data/raw/
+data/processed/
+data/splits/
+artifacts/
+mlruns/
+mlartifacts/
+mlflow.db
+models/
+*.onnx
+*.joblib
+*.bin
+*.safetensors
+logs/
+predictions.jsonl

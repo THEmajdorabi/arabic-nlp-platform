@@ -1,0 +1,88 @@
+# The pipeline, so `dvc repro` regenerates every number in the README from a
+# clean clone. Stages are ordered by what they depend on; DVC works out what
+# has to re-run from the checksums.
+#
+# The transformer and ONNX stages need a GPU and take about an hour. They are
+# in the pipeline rather than in a note, because a reproducibility claim that
+# stops before the expensive part is not a reproducibility claim.
+
+stages:
+  prepare:
+    cmd: python scripts/prepare_data.py
+    deps:
+      - scripts/prepare_data.py
+      - src/arabic_nlp/data/load.py
+      - src/arabic_nlp/data/preprocess.py
+      - src/arabic_nlp/data/splits.py
+    params:
+      - config.yaml:
+          - dataset
+          - split
+          - preprocess
+    outs:
+      - data/splits
+      - data/processed
+    metrics:
+      - data/class_distribution.json:
+          cache: false
+      - data/split_report.json:
+          cache: false
+
+  baseline:
+    cmd: python scripts/train_baseline.py
+    deps:
+      - scripts/train_baseline.py
+      - src/arabic_nlp/models/baseline.py
+      - src/arabic_nlp/evaluate.py
+      - data/splits
+    params:
+      - config.yaml:
+          - baseline
+    outs:
+      - artifacts/baseline
+    metrics:
+      - artifacts/baseline/validation_normalized.json:
+          cache: false
+
+  transformer:
+    cmd: python scripts/train_transformer.py --seeds 3
+    deps:
+      - scripts/train_transformer.py
+      - src/arabic_nlp/models/transformer.py
+      - src/arabic_nlp/evaluate.py
+      - data/splits
+    params:
+      - config.yaml:
+          - transformer
+    outs:
+      - artifacts/transformer
+    metrics:
+      - artifacts/transformer/summary_class_weights.json:
+          cache: false
+
+  export:
+    cmd: >-
+      python scripts/export_onnx.py
+      --model-dir artifacts/transformer/class_weights_seed20260823/model
+    deps:
+      - scripts/export_onnx.py
+      - src/arabic_nlp/export_onnx.py
+      - artifacts/transformer
+    params:
+      - config.yaml:
+          - onnx
+    outs:
+      - artifacts/onnx
+
+  latency:
+    cmd: >-
+      python scripts/benchmark_latency.py
+      --torch-dir artifacts/transformer/class_weights_seed20260823/model
+      --onnx-dir artifacts/onnx/fp32
+    deps:
+      - scripts/benchmark_latency.py
+      - artifacts/onnx
+      - artifacts/transformer
+    metrics:
+      - artifacts/latency.json:
+          cache: false
