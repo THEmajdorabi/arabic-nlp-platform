@@ -171,8 +171,8 @@ def save_confusion_image(result: EvaluationResult, path: str | Path, title: str 
     """Row-normalised confusion matrix as a PNG.
 
     Row-normalised, not raw counts: with a 5x imbalance the raw matrix is a
-    picture of the class distribution, and the confusion pattern -- which is
-    the thing worth looking at -- is invisible.
+    picture of the class distribution, and the confusion pattern, which is
+    the thing worth looking at, is invisible.
     """
     import matplotlib
 

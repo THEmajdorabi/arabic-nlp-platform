@@ -39,7 +39,7 @@ def build_reference(settings, model_dir: str) -> pd.DataFrame:
 
     **Not the training split either.** The first version used `train`, and the
     very first check on ordinary validation traffic reported the `confidence`
-    column as drifted -- because the model is systematically more confident on
+    column as drifted, because the model is systematically more confident on
     text it was fitted to. That is a property of the reference, not of the
     traffic, and it would have burned a quarter of the alert budget on every
     window forever. The validation split is held out, so the model's confidence

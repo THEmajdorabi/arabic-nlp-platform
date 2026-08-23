@@ -1,6 +1,6 @@
 # The service image. CPU-only and ONNX by default: a CPU box serves this model
 # fast enough that paying for a GPU to run inference would be paying for idle
-# silicon. The graph it loads is fp32, not int8 -- see docker-compose.yml.
+# silicon. The graph it loads is fp32, not int8: see docker-compose.yml.
 FROM python:3.12-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \

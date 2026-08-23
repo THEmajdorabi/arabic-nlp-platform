@@ -9,4 +9,4 @@ CLASS DISTRIBUTION
   | SD | 14434 | 9.77% |
   | MA | 11539 | 7.81% |
 
-  imbalance ratio (largest/smallest): 4.99x  -- report macro F1 and per-class F1, never accuracy alone.
+  imbalance ratio (largest/smallest): 4.99x, report macro F1 and per-class F1, never accuracy alone.

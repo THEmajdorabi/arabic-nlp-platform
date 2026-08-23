@@ -22,7 +22,7 @@ a macro F1 of 0.11.
 
 | Candidate | Why not |
 |---|---|
-| **QADI** (`arbml/QADI`) | Loads, but it is 540,590 rows of `tweet_id` and `label` with **no text**. Using it means rehydrating tweets through the API, with heavy attrition and a different corpus for every person who tries. Rejected for the same reason BUILD.md warns off NADI. |
+| **QADI** (`arbml/QADI`) | Loads, but it is 540,590 rows of `tweet_id` and `label` with **no text**. Using it means rehydrating tweets through the API, with heavy attrition and a different corpus for every person who tries. Rejected for the same reason the build spec warns off NADI. |
 | **`Abdelrahman-Rezk/Arabic_Dialect_Identification`** | 440k rows with real text and pre-made splits, and genuinely tempting. Rejected because its 18 classes are **integer ids with no label map** anywhere in the repo or card, and **no licence** is declared. A classifier whose class names are guesses is not one whose per-class F1 means anything. |
 | **ArSarcasm v2** | `iabufarha/ArSarcasm-v2` is not resolvable on the Hub today. |
 | **NADI**, **MADAR** | Registration or a licence agreement. Neither is a same-day `load_dataset()` call. |
@@ -31,7 +31,7 @@ a macro F1 of 0.11.
 
 Made by this repo, not inherited: the upload ships a single `train` split.
 
-- **Stratified**, so the 4.99x imbalance is preserved exactly in train,
+- **Stratified**: so the 4.99x imbalance is preserved exactly in train,
   validation and test. Verified in `tests/test_splits_and_eval.py`.
 - **Seeded** from `config.yaml` (`split.seed: 20260823`), so a split is
   reproducible from a committed file.

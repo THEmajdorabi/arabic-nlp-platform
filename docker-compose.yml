@@ -11,11 +11,16 @@ services:
       MODEL_DIR: /models/current
       BACKEND: onnx
     volumes:
-      # fp32, not int8. Quantization cost 0.0149 macro F1 -- over the 0.010
-      # budget -- and the export report says so. The int8 graph is 3.9x
+      # fp32, not int8. Quantization cost 0.0149 macro F1, over the 0.010
+      # budget, and the export report says so. The int8 graph is 3.9x
       # smaller and is still built; it is simply not what ships.
       - ./artifacts/onnx/fp32:/models/current:ro
       - ./logs:/app/logs
+      # The drift job runs on a schedule OUTSIDE the request path and writes
+      # here; the service reads it to serve /drift and the Prometheus gauge.
+      # Without this mount the gauge sits at 0.0 forever and the endpoint says
+      # "no report", which is at least honest, but not useful.
+      - ./artifacts/drift:/app/artifacts/drift:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
       interval: 30s
@@ -29,6 +34,7 @@ services:
       - "9090:9090"
     volumes:
       - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/alerts.yml:/etc/prometheus/alerts.yml:ro
     depends_on:
       - api
 
@@ -39,6 +45,13 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
+      # Anonymous read access. This stack binds to localhost and serves a
+      # dashboard of one model's request metrics; a login prompt in front of it
+      # buys nothing and makes the dashboard un-screenshottable and un-linkable.
+      # Do not carry this setting to anything reachable from a network.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_BASIC_ENABLED: "false"
     volumes:
       # Provisioned as code: the dashboard is in git, not clicked together and
       # lost when the container is recreated.

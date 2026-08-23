@@ -87,7 +87,7 @@ def main() -> int:
     result, texts, y_true, y_pred, probabilities = score(validation, "validation")
     print(
         result.render(
-            f"BASELINE (tfidf+logreg, normalize_arabic={settings.baseline.normalize_arabic}) -- VALIDATION"
+            f"BASELINE (tfidf+logreg, normalize_arabic={settings.baseline.normalize_arabic}) on VALIDATION"
         )
     )
     save_result(result, ARTIFACTS / f"validation_{tag}.json")
@@ -117,7 +117,7 @@ def main() -> int:
         print()
         print("!! Reading the test set. This should happen once, at the end.")
         test_result, *_ = score(load_test(), "test")
-        print(test_result.render("BASELINE -- TEST"))
+        print(test_result.render("BASELINE on TEST"))
         save_result(test_result, ARTIFACTS / f"test_{tag}.json")
         save_confusion_image(test_result, ARTIFACTS / f"confusion_test_{tag}.png", "baseline, test")
 

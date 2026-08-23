@@ -8,19 +8,19 @@ pinned in pyproject.toml and this docstring is the warning.
 
 What is compared, and why these four:
 
-  * **text length** -- the cheapest early warning there is. A change in where
+  * **text length**: the cheapest early warning there is. A change in where
     the traffic comes from (a new client, a new form field, a bot) shows up
     here before it shows up anywhere else.
-  * **word count** -- length in characters and length in words drift apart when
+  * **word count**: length in characters and length in words drift apart when
     the script or the tokenisation changes.
-  * **predicted class distribution** -- the model's own output. If the mix
+  * **predicted class distribution**: the model's own output. If the mix
     moves and the inputs did not, the model is behaving differently.
-  * **mean confidence** -- the leading indicator of out-of-distribution input.
+  * **mean confidence**: the leading indicator of out-of-distribution input.
     A model asked about something it has never seen gets *less* certain before
     it gets wrong, and this is the number that catches it.
 
 Raw text is never compared, because raw text is never stored: the request log
-keeps a hash. That is a deliberate limit -- an embedding-drift check would be
+keeps a hash. That is a deliberate limit: an embedding-drift check would be
 stronger and would require keeping the text.
 """
 
@@ -91,7 +91,7 @@ def build_reference(frame: pd.DataFrame, settings: Settings) -> pd.DataFrame:
 
     Built from the training split's texts and the model's own predictions on
     them, so the reference for `label` and `confidence` is what the model
-    actually does -- not the ground-truth distribution, which the service will
+    actually does, not the ground-truth distribution, which the service will
     never see again.
     """
     rows = frame.head(settings.drift.reference_rows).copy()
@@ -155,7 +155,7 @@ def compute_drift(
         column_threshold = float(config.get("threshold", 0.1))
         score = float(value) if isinstance(value, int | float) else 0.0
         # Evidently's distance metrics are "higher means more different", and
-        # each carries its own threshold in the config -- so the comparison
+        # each carries its own threshold in the config, so the comparison
         # uses that rather than a number hardcoded here.
         per_column[str(column)] = {
             "method": config.get("method", "unknown"),

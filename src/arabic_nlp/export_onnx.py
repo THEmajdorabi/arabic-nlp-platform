@@ -1,7 +1,7 @@
 """Export to ONNX, quantize, and re-check accuracy.
 
 The step people skip is the last one. Dynamic int8 quantization is nearly free
-and usually costs a fraction of a point of F1 -- but "usually" is not a
+and usually costs a fraction of a point of F1, but "usually" is not a
 measurement, and a quantized model that lost three points is a silent
 regression that ships. So this exports, quantizes, scores both on the same
 validation split, and reports the delta. If the delta is unacceptable, keeping

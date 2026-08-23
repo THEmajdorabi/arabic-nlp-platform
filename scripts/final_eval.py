@@ -85,7 +85,7 @@ def main() -> int:
             "macro_f1_ci": interval,
         },
     )
-    print(result.render("FINE-TUNED -- TEST"))
+    print(result.render("FINE-TUNED on TEST"))
     print(
         f"macro F1 {interval['macro_f1']:.4f} [{interval['ci_low']:.4f}, {interval['ci_high']:.4f}]"
     )
@@ -115,7 +115,7 @@ def main() -> int:
             y_true, baseline_pred, baseline_probabilities, labels, extra={"split": "test"}
         )
         print()
-        print(baseline_result.render("BASELINE (tfidf+logreg) -- TEST"))
+        print(baseline_result.render("BASELINE (tfidf+logreg) on TEST"))
         save_result(baseline_result, ARTIFACTS / "test_baseline.json")
 
         paired = paired_macro_f1_difference(y_true, baseline_pred, y_pred, labels)

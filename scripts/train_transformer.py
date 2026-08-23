@@ -73,7 +73,7 @@ def main() -> int:
 
     if args.smoke:
         # A training smoke test for CI: tiny, CPU-friendly, and it asserts the
-        # thing that actually breaks -- that the loss goes down. It catches a
+        # thing that actually breaks, that the loss goes down. It catches a
         # broken collator, a label mismatch or a frozen model without a GPU.
         train_frame = train_frame.head(200)
         validation_frame = validation_frame.head(100)
@@ -89,7 +89,7 @@ def main() -> int:
 
     # Seed runs are independent, so they are resumable. A machine that dies
     # eighteen minutes into seed two should not cost the forty minutes already
-    # spent on seed one -- and the summary below is rebuilt from whatever is on
+    # spent on seed one, and the summary below is rebuilt from whatever is on
     # disk, however it got there.
     if args.only_seeds:
         seeds = [int(part) for part in args.only_seeds.split(",") if part.strip()]
@@ -177,7 +177,7 @@ def main() -> int:
                 },
             )
 
-            print(result.render(f"MARBERTv2 ({strategy}, seed {seed}) -- VALIDATION"))
+            print(result.render(f"MARBERTv2 ({strategy}, seed {seed}) on VALIDATION"))
             print(
                 f"macro F1 {interval['macro_f1']:.4f} "
                 f"[{interval['ci_low']:.4f}, {interval['ci_high']:.4f}]"

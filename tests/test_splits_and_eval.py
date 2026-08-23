@@ -1,7 +1,7 @@
 """Splits, metrics, calibration, batching.
 
 Everything here runs on synthetic data in milliseconds, with no model, no GPU
-and no network -- which is what lets CI gate on it.
+and no network, which is what lets CI gate on it.
 """
 
 from __future__ import annotations

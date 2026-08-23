@@ -76,7 +76,7 @@ transformer:
   fp16: true
   # Imbalance handling. "class_weights" weights the loss; "oversample"
   # resamples the minority classes; "none" is the control. All three are run
-  # and reported -- see the README.
+  # and reported: see the README.
   imbalance: "class_weights"
   # Three seeds, because one run's number is not a result.
   seeds: [20260823, 20260824, 20260825]

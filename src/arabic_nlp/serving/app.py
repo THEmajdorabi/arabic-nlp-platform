@@ -7,8 +7,8 @@
     GET  /drift       the current drift report
     POST /route       the hook repo 02 calls: dialect -> a routing decision
 
-Every prediction is logged -- as a hash of the text, never the text itself,
-plus length, predicted label and confidence -- to a rolling file the drift
+Every prediction is logged, as a hash of the text, never the text itself,
+plus length, predicted label and confidence, to a rolling file the drift
 monitor reads. Logging raw user text into a file that outlives the request is a
 privacy decision nobody should make by default, and the drift signals worth
 watching (length, OOV rate, class mix, confidence) do not need it.
@@ -171,7 +171,7 @@ def route(body: RouteRequest, batcher: MicroBatcher = Depends(get_batcher)) -> R
     """The integration hook for repo 02.
 
     A question in Gulf colloquial and one in formal MSA want different
-    retrieval treatment. This says which it looks like -- and, below the
+    retrieval treatment. This says which it looks like, and, below the
     confidence floor, says it does not know, which is the answer that keeps the
     caller correct.
     """

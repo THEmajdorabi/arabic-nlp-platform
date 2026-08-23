@@ -3,7 +3,7 @@
 Two things are asserted at startup rather than discovered in production:
 
 **The tokenizer and the weights come from the same directory.** A tokenizer
-mismatch does not raise -- it produces token ids the model was never trained on
+mismatch does not raise, it produces token ids the model was never trained on
 and the service returns confident nonsense. The check is cheap and the failure
 it prevents is silent.
 
@@ -63,7 +63,7 @@ class Predictor:
             # Named explicitly when given. A quantized directory holds
             # `model_quantized.onnx`, not `model.onnx`, and letting optimum
             # guess produces a warning and an ambiguity about which graph was
-            # actually measured -- which is not something an accuracy
+            # actually measured, which is not something an accuracy
             # comparison can afford.
             name = onnx_file_name or self._detect_onnx_file()
             self.model = ORTModelForSequenceClassification.from_pretrained(

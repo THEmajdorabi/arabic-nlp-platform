@@ -1,7 +1,7 @@
 """Micro-batching.
 
 A transformer forward pass on one text and on thirty-two texts cost almost the
-same wall time -- the GPU is idle either way, waiting on kernel launches. So a
+same wall time: the GPU is idle either way, waiting on kernel launches. So a
 service that runs one pass per request wastes most of its throughput on light
 load and collapses under heavy load.
 

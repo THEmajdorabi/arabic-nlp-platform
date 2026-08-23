@@ -3,6 +3,8 @@ name = "arabic-nlp-platform"
 version = "0.1.0"
 description = "Arabic dialect identification, from a baseline to a monitored service."
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 # The BASE set is what the service needs to answer a request, and nothing more.
 # Training pulls in datasets, MLflow, matplotlib and scikit-learn; a serving
 # image that carries them is carrying an experiment tracker into production.
@@ -22,7 +24,7 @@ dependencies = [
     # ONNX Runtime support moved out of bare `optimum` in 2.x. Installing
     # `optimum` alone gives an ImportError on ORTModelForSequenceClassification.
     # It does pull torch in transitively, which is why the image is still not
-    # tiny -- see DECISIONS.md.
+    # tiny: see DECISIONS.md.
     "optimum[onnxruntime]>=1.23.0",
     "onnx>=1.16.0",
     "onnxruntime>=1.19.0",

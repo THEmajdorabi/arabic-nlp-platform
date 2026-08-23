@@ -1,4 +1,4 @@
-# Error analysis — MARBERTv2, seed 20260823, validation split
+# Error analysis. MARBERTv2, seed 20260823, validation split
 
 The 30 most **confident** mistakes, sorted by the confidence of the wrong
 prediction. Confident errors are the informative ones: a low-confidence mistake
@@ -29,13 +29,13 @@ unmistakable markers of the class it predicted, and none of the class it was
 labelled with.
 
 A mechanical check, using the **baseline's own top-weighted features** per
-class as the marker list — so the criterion comes from the data rather than
+class as the marker list, so the criterion comes from the data rather than
 from my reading:
 
 | | n of 30 |
 |---|---|
-| Markers support the **predicted** label, none for the true label — *the label looks wrong* | **12** |
-| Markers support the **true** label — *the model is wrong* | 4 |
+| Markers support the **predicted** label, none for the true label, *the label looks wrong* | **12** |
+| Markers support the **true** label, *the model is wrong* | 4 |
 | No marker either way, or markers for both | 14 |
 
 The twelve, with the marker that decided each:
@@ -57,10 +57,10 @@ The twelve, with the marker that decided each:
 
 Two of them are not subtle:
 
-- *"وانا كنحماااق عليكم يا اهل المغرب وقريبا راح نكون عندكم في المغرب"* —
+- *"وانا كنحماااق عليكم يا اهل المغرب وقريبا راح نكون عندكم في المغرب"*,
   labelled **LY**, and it uses the Moroccan progressive `كن-` while
   *saying it is addressed to Moroccans*. Predicted MA at 0.999.
-- *"وين جايب هالحكي انت ... انت كنت معنا ولا شايفهم وشايفنا"* — labelled
+- *"وين جايب هالحكي انت ... انت كنت معنا ولا شايفهم وشايفنا"*, labelled
   **EG**, and `وين`, `هالحكي` and `شايفنا` are Levantine. Predicted LB at 0.998.
 
 **What this means for the ceiling.** If roughly a third of the most confident
@@ -80,18 +80,18 @@ done.
 
 The four where the markers back the label are worth reading on their own:
 
-- *"معروف عننا كمصرين دمنا خفيف"* — labelled EG, predicted SD at 0.998. The
+- *"معروف عننا كمصرين دمنا خفيف"*, labelled EG, predicted SD at 0.998. The
   text says **"known about us as Egyptians"**. The model had the answer in the
   sentence and missed it, which suggests it is keying on register and function
   words rather than content.
-- *"بالمناسبة برضو مفاهيم اسلامية مغلوطة"* — `برضو` is Egyptian, but it is
+- *"بالمناسبة برضو مفاهيم اسلامية مغلوطة"*, `برضو` is Egyptian, but it is
   also current in Sudanese, and there is nothing else in the sentence.
 
 ## The other structural causes
 
 **Length.** These 30 average **50.6 characters** (median 45, minimum 27)
 against a corpus mean of 87.5. Short texts carry fewer markers, and with none
-present the model falls back on priors — which is why the errors run *into*
+present the model falls back on priors, which is why the errors run *into*
 LB and MA, whose markers are the most distinctive and therefore the most
 strongly weighted when a weak signal appears.
 
@@ -108,7 +108,7 @@ recall of any class (0.784), and this is where it goes.
 
 1. **Have a person read a random 200 rows** and estimate the label-error rate.
    Everything above is bounded by that number and it is currently unknown.
-2. **Re-check the EG/SD boundary specifically** — the two classes may not be
+2. **Re-check the EG/SD boundary specifically**: the two classes may not be
    separable in this corpus's short texts at all, which would be a finding
    about the data rather than a model to fix.
 3. **Only then** consider modelling changes. Tuning a model against a test set
