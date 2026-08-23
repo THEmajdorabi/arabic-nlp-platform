@@ -85,6 +85,13 @@ def export(model_dir: str | Path, output_dir: str | Path, settings: Settings) ->
     # does in training: a service that fetches it separately can silently get a
     # different one.
     AutoTokenizer.from_pretrained(str(source)).save_pretrained(str(target))
+
+    # And the training record, so `/model-info` can report which run produced
+    # the graph it is serving. Without it the endpoint answers `null` for the
+    # validation macro F1, which is worse than not offering the field.
+    record = source / "training_record.json"
+    if record.exists():
+        shutil.copy2(record, target / "training_record.json")
     return target
 
 

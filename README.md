@@ -333,6 +333,28 @@ slower and the only symptom is that it is slow. `make setup` installs the CUDA
 build explicitly, and the training script prints `torch.cuda.is_available()`
 before it starts. This happened twice in this project — repo 02 hit it too.
 
+## The container
+
+```bash
+docker build -t arabic-nlp-platform .
+docker run -p 8000:8000 -v ./artifacts/onnx/fp32:/models/current:ro arabic-nlp-platform
+```
+
+**2.43 GB**, down from 3.75 GB once the package grew a dependency split: the
+base set is what the service needs, `train` holds datasets/MLflow/matplotlib/
+scikit-learn, and `monitor` holds Evidently. A serving image carrying an
+experiment tracker is carrying it into production.
+
+Verified: the containerised ONNX service returns **identical labels and
+confidences to three decimal places** as the GPU PyTorch service, on the same
+five hand-written sentences — one per dialect, each classified correctly at
+0.983 to 0.999.
+
+It is still 2.43 GB because `optimum[onnxruntime]` depends on `torch`, which
+arrives transitively even though the ONNX backend never calls it. Removing it
+means driving `onnxruntime` directly instead of through optimum. See
+DECISIONS.md.
+
 ## CI
 
 Lint, format, mypy, unit tests, a **training smoke test**, and a Docker build.

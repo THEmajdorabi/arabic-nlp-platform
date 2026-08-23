@@ -5,7 +5,7 @@ MODEL := artifacts/transformer/class_weights_seed20260823/model
 
 setup:  ## venv and dependencies. Installs the CUDA torch build explicitly.
 	uv venv --python 3.12
-	uv pip install -e .
+	uv pip install -e ".[train,monitor]"
 	uv pip install pytest ruff mypy types-PyYAML dvc
 	uv pip install torch --index-url https://download.pytorch.org/whl/cu124 --reinstall
 

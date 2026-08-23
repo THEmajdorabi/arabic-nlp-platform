@@ -310,3 +310,39 @@ which unit tests see, and it needs no GPU.
 benchmark, or the drift check against real traffic. Those need hardware or a
 running service, and faking them in CI would produce a green tick that means
 nothing.
+
+## 2026-08-23 — The serving image was 3.75 GB because the package had one dependency set
+
+**What happened:** the image built on the first try, which is why the size went
+unnoticed for a while: **3.75 GB** for a service that answers `POST /predict`.
+
+**The cause:** `pyproject.toml` had a single `dependencies` list, so
+`pip install -e .` inside the container installed `datasets`, `mlflow`,
+`matplotlib`, `scikit-learn`, `scipy` and `joblib` — an experiment tracker, a
+plotting library and a training data loader, shipped into production.
+
+**The fix:** three sets.
+
+| Set | Holds | Installed by |
+|---|---|---|
+| base | fastapi, transformers, optimum, onnxruntime, pandas | the container |
+| `train` | datasets, torch, mlflow, matplotlib, scikit-learn, scipy | `make setup`, CI |
+| `monitor` | evidently | the drift job |
+
+**Result: 3.75 GB to 2.43 GB, a 35% cut**, and the container was re-run to
+confirm it still serves: identical labels and confidences to three decimal
+places against the GPU PyTorch service on the same five hand-written sentences.
+
+**Why it is still 2.43 GB, stated rather than hidden.** `optimum[onnxruntime]`
+depends on `torch`, so the CPU torch wheel arrives transitively even though the
+ONNX backend never calls it. Getting rid of it means dropping optimum and
+driving `onnxruntime` directly with a `transformers` tokenizer — a real
+refactor, worth doing if image size matters, and not done here. The CPU wheel
+is installed explicitly from PyTorch's index first so that at least the 2.5 GB
+CUDA build does not arrive instead.
+
+**A gap the same exercise found.** `/model-info` reported
+`validation_macro_f1: null` from the ONNX directory, because the export copied
+the tokenizer and the config but not `training_record.json`. An endpoint that
+offers a field and answers `null` is worse than one that does not offer it.
+`export()` now copies the record, the same way `quantize()` already did.
