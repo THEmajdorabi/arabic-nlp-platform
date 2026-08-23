@@ -115,3 +115,40 @@ def test_a_failing_model_raises_to_every_caller_and_does_not_kill_the_thread():
         assert b.submit(["b"]) == ["b"]
     finally:
         b.stop()
+
+
+def test_predictor_batches_internally(monkeypatch):
+    """A method safe at 32 texts and fatal at 4,000 is a trap.
+
+    Regression: passing the whole validation split to `probabilities` in one
+    call asked ONNX Runtime for a 4.7 GB activation buffer and it refused.
+    """
+    import numpy as np
+
+    from arabic_nlp.serving.predictor import Predictor
+
+    seen: list[int] = []
+
+    class Fake(Predictor):
+        def __init__(self) -> None:  # noqa: D107 - deliberately skips model loading
+            from arabic_nlp.config import load_settings
+
+            self.settings = load_settings()
+            self.backend = "fake"
+            self.labels = self.settings.dataset.label_names
+
+        def preprocess(self, texts: list[str]) -> list[str]:
+            return texts
+
+        def _logits(self, cleaned: list[str]):  # noqa: ANN202
+            seen.append(len(cleaned))
+            return np.zeros((len(cleaned), len(self.labels)), dtype=np.float32)
+
+    predictor = Fake()
+    out = predictor.probabilities(["t"] * 200, batch_size=32)
+
+    assert out.shape == (200, 5)
+    assert max(seen) <= 32
+    assert sum(seen) == 200
+    # Uniform logits must come back as a uniform distribution, not NaN.
+    assert np.allclose(out.sum(axis=1), 1.0)

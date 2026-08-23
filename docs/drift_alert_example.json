@@ -1,0 +1,35 @@
+{
+  "drifted_columns": 4,
+  "total_columns": 4,
+  "drift_share": 1.0,
+  "alert": true,
+  "threshold": 0.5,
+  "reference_rows": 5000,
+  "current_rows": 400,
+  "per_column": {
+    "chars": {
+      "method": "Wasserstein distance (normed)",
+      "score": 0.6452590700166211,
+      "threshold": 0.1,
+      "drifted": true
+    },
+    "words": {
+      "method": "Wasserstein distance (normed)",
+      "score": 0.68101963156966,
+      "threshold": 0.1,
+      "drifted": true
+    },
+    "confidence": {
+      "method": "Wasserstein distance (normed)",
+      "score": 2.596243930006927,
+      "threshold": 0.1,
+      "drifted": true
+    },
+    "label": {
+      "method": "Jensen-Shannon distance",
+      "score": 0.3549955628512627,
+      "threshold": 0.1,
+      "drifted": true
+    }
+  }
+}

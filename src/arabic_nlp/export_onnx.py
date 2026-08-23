@@ -32,6 +32,7 @@ log = structlog.get_logger(__name__)
 class ExportResult:
     fp32_dir: Path
     int8_dir: Path | None
+    torch_macro_f1: float
     fp32_macro_f1: float
     int8_macro_f1: float | None
     delta: float | None
@@ -39,10 +40,22 @@ class ExportResult:
     int8_size_mb: float | None
     recommended: str
 
+    @property
+    def export_delta(self) -> float:
+        """fp32 ONNX minus the PyTorch model it came from.
+
+        The question nobody asks and everybody should: did exporting change
+        the model? Anything but a rounding difference here means the traced
+        graph is not the model that was evaluated.
+        """
+        return self.fp32_macro_f1 - self.torch_macro_f1
+
     def as_dict(self) -> dict:
         return {
             "fp32_dir": str(self.fp32_dir),
             "int8_dir": str(self.int8_dir) if self.int8_dir else None,
+            "torch_macro_f1": round(self.torch_macro_f1, 4),
+            "export_delta": round(self.export_delta, 4),
             "fp32_macro_f1": round(self.fp32_macro_f1, 4),
             "int8_macro_f1": round(self.int8_macro_f1, 4) if self.int8_macro_f1 else None,
             "macro_f1_delta": round(self.delta, 4) if self.delta is not None else None,
@@ -105,7 +118,14 @@ def quantize(onnx_dir: str | Path, output_dir: str | Path) -> Path:
     return target
 
 
-def score(model_dir: str | Path, texts: list[str], y_true: np.ndarray, settings: Settings) -> float:
+def score(
+    model_dir: str | Path,
+    texts: list[str],
+    y_true: np.ndarray,
+    settings: Settings,
+    backend: str = "onnx",
+    onnx_file_name: str | None = None,
+) -> float:
     """Macro F1 of a model directory on the given texts, via the serving path.
 
     Deliberately through `Predictor`, the same class the service uses, so this
@@ -116,7 +136,7 @@ def score(model_dir: str | Path, texts: list[str], y_true: np.ndarray, settings:
 
     from arabic_nlp.serving.predictor import Predictor
 
-    predictor = Predictor(model_dir, settings, backend="onnx")
+    predictor = Predictor(model_dir, settings, backend=backend, onnx_file_name=onnx_file_name)
     probabilities = predictor.probabilities(texts)
     y_pred = probabilities.argmax(axis=1)
     return float(f1_score(y_true, y_pred, average="macro", zero_division=0))
@@ -131,9 +151,15 @@ def export_and_verify(
     max_acceptable_drop: float = 0.01,
 ) -> ExportResult:
     root = Path(output_root)
+
+    # The reference: the PyTorch model, on exactly these texts. Without it,
+    # "int8 scores 0.87" is a number with nothing to be 0.87 against.
+    torch_f1 = score(model_dir, texts, y_true, settings, backend="torch")
+    log.info("onnx.torch_scored", macro_f1=round(torch_f1, 4))
+
     fp32_dir = export(model_dir, root / "fp32", settings)
-    fp32_f1 = score(fp32_dir, texts, y_true, settings)
-    log.info("onnx.fp32_scored", macro_f1=round(fp32_f1, 4))
+    fp32_f1 = score(fp32_dir, texts, y_true, settings, onnx_file_name="model.onnx")
+    log.info("onnx.fp32_scored", macro_f1=round(fp32_f1, 4), delta=round(fp32_f1 - torch_f1, 4))
 
     int8_dir: Path | None = None
     int8_f1: float | None = None
@@ -143,7 +169,9 @@ def export_and_verify(
     if settings.onnx.quantize:
         try:
             int8_dir = quantize(fp32_dir, root / "int8")
-            int8_f1 = score(int8_dir, texts, y_true, settings)
+            int8_f1 = score(
+                int8_dir, texts, y_true, settings, onnx_file_name="model_quantized.onnx"
+            )
             delta = int8_f1 - fp32_f1
             int8_size = directory_size_mb(int8_dir)
             log.info("onnx.int8_scored", macro_f1=round(int8_f1, 4), delta=round(delta, 4))
@@ -163,6 +191,7 @@ def export_and_verify(
     result = ExportResult(
         fp32_dir=fp32_dir,
         int8_dir=int8_dir,
+        torch_macro_f1=torch_f1,
         fp32_macro_f1=fp32_f1,
         int8_macro_f1=int8_f1,
         delta=delta,

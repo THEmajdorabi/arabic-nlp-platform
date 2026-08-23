@@ -29,15 +29,25 @@ from arabic_nlp.serving.monitor import (  # noqa: E402
 
 
 def build_reference(settings, model_dir: str) -> pd.DataFrame:
-    """Reference = the model's own behaviour on training-distribution text.
+    """Reference = the model's own behaviour on HELD-OUT in-distribution text.
 
-    Not the ground-truth label distribution: the service never sees labels, so
-    a reference built from them would flag as drift the model's ordinary error
-    pattern.
+    Two choices here, both learned the hard way.
+
+    **Not the ground-truth label distribution.** The service never sees labels,
+    so a reference built from them would flag the model's ordinary error
+    pattern as drift.
+
+    **Not the training split either.** The first version used `train`, and the
+    very first check on ordinary validation traffic reported the `confidence`
+    column as drifted -- because the model is systematically more confident on
+    text it was fitted to. That is a property of the reference, not of the
+    traffic, and it would have burned a quarter of the alert budget on every
+    window forever. The validation split is held out, so the model's confidence
+    on it is what confidence on real traffic should look like.
     """
     from arabic_nlp.serving.predictor import Predictor
 
-    frame = load_split("train").head(settings.drift.reference_rows).copy()
+    frame = load_split("validation").head(settings.drift.reference_rows).copy()
     predictor = Predictor(model_dir, settings)
     predictions = predictor.predict(frame["text"].tolist())
 

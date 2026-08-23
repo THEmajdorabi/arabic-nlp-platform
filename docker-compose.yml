@@ -11,7 +11,10 @@ services:
       MODEL_DIR: /models/current
       BACKEND: onnx
     volumes:
-      - ./artifacts/onnx/int8:/models/current:ro
+      # fp32, not int8. Quantization cost 0.0149 macro F1 -- over the 0.010
+      # budget -- and the export report says so. The int8 graph is 3.9x
+      # smaller and is still built; it is simply not what ships.
+      - ./artifacts/onnx/fp32:/models/current:ro
       - ./logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]

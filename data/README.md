@@ -70,5 +70,7 @@ usable. The filters stay because the next corpus will not be so tidy.
 ## The test set
 
 Read **once**, by `scripts/final_eval.py`, which refuses to run without an
-explicit `--i-know-this-touches-the-test-set` flag. The count is in the
-top-level README.
+explicit `--i-know-this-touches-the-test-set` flag.
+
+**Times read: 1**, on 2026-08-23, after every model decision had been made on
+validation.

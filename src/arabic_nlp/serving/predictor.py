@@ -42,6 +42,8 @@ class Predictor:
         model_dir: str | Path,
         settings: Settings,
         backend: str = "torch",
+        onnx_file_name: str | None = None,
+        device: str | None = None,
     ) -> None:
         self.model_dir = Path(model_dir)
         self.settings = settings
@@ -58,14 +60,26 @@ class Predictor:
         if backend == "onnx":
             from optimum.onnxruntime import ORTModelForSequenceClassification
 
-            self.model = ORTModelForSequenceClassification.from_pretrained(str(self.model_dir))
+            # Named explicitly when given. A quantized directory holds
+            # `model_quantized.onnx`, not `model.onnx`, and letting optimum
+            # guess produces a warning and an ambiguity about which graph was
+            # actually measured -- which is not something an accuracy
+            # comparison can afford.
+            name = onnx_file_name or self._detect_onnx_file()
+            self.model = ORTModelForSequenceClassification.from_pretrained(
+                str(self.model_dir), file_name=name
+            )
             self.device = "cpu"
         else:
             import torch
             from transformers import AutoModelForSequenceClassification
 
             self.model = AutoModelForSequenceClassification.from_pretrained(str(self.model_dir))
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            # Overridable so a latency benchmark can put PyTorch on the CPU and
+            # compare like with like against ONNX Runtime, which is CPU-only
+            # here. PyTorch-on-GPU against ONNX-on-CPU is not a comparison of
+            # runtimes; it is a comparison of devices.
+            self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
             self.model.to(self.device).eval()
 
         self.labels = self._labels()
@@ -76,6 +90,20 @@ class Predictor:
             backend=backend,
             device=self.device,
             labels=self.labels,
+        )
+
+    def _detect_onnx_file(self) -> str:
+        """Pick the graph in this directory, and refuse if it is ambiguous."""
+        candidates = sorted(p.name for p in self.model_dir.glob("*.onnx"))
+        if not candidates:
+            raise FileNotFoundError(f"no .onnx file in {self.model_dir}")
+        if len(candidates) == 1:
+            return candidates[0]
+        if "model.onnx" in candidates:
+            return "model.onnx"
+        raise ValueError(
+            f"{self.model_dir} holds several ONNX graphs {candidates} and none is model.onnx. "
+            f"Pass onnx_file_name so the measurement names the graph it measured."
         )
 
     def _labels(self) -> list[str]:
@@ -121,8 +149,7 @@ class Predictor:
             for text in texts
         ]
 
-    def probabilities(self, texts: list[str]) -> np.ndarray:
-        cleaned = self.preprocess(texts)
+    def _logits(self, cleaned: list[str]) -> np.ndarray:
         encoded = self.tokenizer(
             cleaned,
             truncation=True,
@@ -132,14 +159,34 @@ class Predictor:
         )
 
         if self.backend == "onnx":
-            logits = self.model(**dict(encoded)).logits
-            logits = np.asarray(logits)
-        else:
-            import torch
+            return np.asarray(self.model(**dict(encoded)).logits)
 
-            with torch.no_grad():
-                logits = self.model(**{k: v.to(self.device) for k, v in encoded.items()}).logits
-            logits = logits.cpu().numpy()
+        import torch
+
+        with torch.no_grad():
+            output = self.model(**{k: v.to(self.device) for k, v in encoded.items()}).logits
+        return output.cpu().numpy()
+
+    def probabilities(self, texts: list[str], batch_size: int | None = None) -> np.ndarray:
+        """Softmax probabilities, in bounded batches.
+
+        The batching is here rather than only in the micro-batcher because
+        `probabilities` is called directly by the ONNX verification and the
+        latency benchmark. Passing 4,000 texts as one padded batch asked ONNX
+        Runtime for a 4.7 GB activation buffer and it refused:
+
+            Failed to allocate memory for requested buffer of size 4718592000
+
+        A method that is safe at 32 texts and fatal at 4,000 is a trap for
+        every future caller, so the cap lives in the method.
+        """
+        size = batch_size or self.settings.transformer.eval_batch_size
+        cleaned = self.preprocess(texts)
+
+        chunks = [
+            self._logits(cleaned[start : start + size]) for start in range(0, len(cleaned), size)
+        ]
+        logits = np.concatenate(chunks, axis=0) if chunks else np.empty((0, len(self.labels)))
 
         shifted = logits - logits.max(axis=1, keepdims=True)
         exponent = np.exp(shifted)

@@ -76,14 +76,23 @@ def main() -> int:
     settings = load_settings()
     texts = load_split("validation")["text"].tolist()[:64]
 
+    # Three rows, because two of them are the only fair comparison. ONNX
+    # Runtime here is CPU-only, so "ONNX is slower than PyTorch" measured
+    # against PyTorch on a GPU is a statement about devices, not runtimes.
     results: dict[str, list[dict]] = {}
-    for name, directory, backend in (
-        ("pytorch", args.torch_dir, "torch"),
-        ("onnx", args.onnx_dir, "onnx"),
+    for name, directory, backend, device in (
+        ("pytorch-cuda", args.torch_dir, "torch", "cuda"),
+        ("pytorch-cpu", args.torch_dir, "torch", "cpu"),
+        ("onnx-cpu", args.onnx_dir, "onnx", None),
     ):
         if not directory:
             continue
-        predictor = Predictor(directory, settings, backend=backend)
+        if device == "cuda":
+            import torch
+
+            if not torch.cuda.is_available():
+                continue
+        predictor = Predictor(directory, settings, backend=backend, device=device)
         results[name] = [
             measure(
                 predictor,

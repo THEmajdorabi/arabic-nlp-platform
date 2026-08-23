@@ -41,19 +41,20 @@ def main() -> int:
     )
 
     print("ONNX EXPORT")
-    print("| | fp32 | int8 |")
-    print("|---|---|---|")
+    print("| | PyTorch | ONNX fp32 | ONNX int8 |")
+    print("|---|---|---|---|")
     print(
-        f"| macro F1 (n={len(texts)}) | {result.fp32_macro_f1:.4f} | "
+        f"| macro F1 (n={len(texts)}) | {result.torch_macro_f1:.4f} | {result.fp32_macro_f1:.4f} | "
         f"{f'{result.int8_macro_f1:.4f}' if result.int8_macro_f1 is not None else 'n/a'} |"
     )
     print(
-        f"| size on disk | {result.fp32_size_mb:.1f} MB | "
+        f"| size on disk | n/a | {result.fp32_size_mb:.1f} MB | "
         f"{f'{result.int8_size_mb:.1f} MB' if result.int8_size_mb else 'n/a'} |"
     )
+    print()
+    print(f"export changed macro F1 by       {result.export_delta:+.4f}  (PyTorch -> ONNX fp32)")
     if result.delta is not None:
-        print()
-        print(f"quantization changed macro F1 by {result.delta:+.4f}")
+        print(f"quantization changed macro F1 by {result.delta:+.4f}  (fp32 -> int8)")
     print(f"recommended: {result.recommended}")
     return 0
 
