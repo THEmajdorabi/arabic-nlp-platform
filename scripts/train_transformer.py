@@ -50,6 +50,16 @@ def main() -> int:
     parser.add_argument(
         "--smoke", action="store_true", help="200 rows, 30 steps; asserts loss falls"
     )
+    parser.add_argument(
+        "--only-seeds",
+        default="",
+        help="comma-separated seeds to run, e.g. 20260824,20260825. Overrides --seeds.",
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="skip a seed whose validation.json is already on disk",
+    )
     parser.add_argument("--tag", default="")
     args = parser.parse_args()
 
@@ -77,8 +87,24 @@ def main() -> int:
     validation_labels = [index[label] for label in validation_frame["label"]]
     y_true = np.array(validation_labels)
 
-    seeds = settings.transformer.seeds[: max(1, args.seeds)]
+    # Seed runs are independent, so they are resumable. A machine that dies
+    # eighteen minutes into seed two should not cost the forty minutes already
+    # spent on seed one -- and the summary below is rebuilt from whatever is on
+    # disk, however it got there.
+    if args.only_seeds:
+        seeds = [int(part) for part in args.only_seeds.split(",") if part.strip()]
+    else:
+        seeds = settings.transformer.seeds[: max(1, args.seeds)]
     tag = args.tag or strategy
+
+    if args.skip_existing:
+        remaining = [
+            s for s in seeds if not (ARTIFACTS / f"{tag}_seed{s}" / "validation.json").exists()
+        ]
+        for seed in set(seeds) - set(remaining):
+            print(f"  seed {seed}: validation.json exists, skipping")
+        seeds = remaining
+
     runs: list[dict] = []
 
     import mlflow
@@ -204,13 +230,50 @@ def main() -> int:
             print(f"  {pair['true']} -> {pair['predicted']}: {pair['rate']:.3f} ({pair['n']} rows)")
         print()
 
-    scores = [r["macro_f1"] for r in runs]
+    # Rebuild from disk, not from this process's `runs`. Three seeds run in
+    # three invocations must produce the same summary as three in one.
+    on_disk: list[dict] = []
+    for path in sorted(ARTIFACTS.glob(f"{tag}_seed*/validation.json")):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        on_disk.append(
+            {
+                "seed": record.get("seed"),
+                "macro_f1": record["macro_f1"],
+                "weighted_f1": record["weighted_f1"],
+                "ece": record["expected_calibration_error"],
+                "per_class_f1": {k: v["f1"] for k, v in record["per_class"].items()},
+                "macro_f1_ci": record.get("macro_f1_ci"),
+                "mlflow_run_id": record.get("mlflow_run_id"),
+                "directory": str(path.parent / "model"),
+                "wall_s": record.get("wall_s"),
+            }
+        )
+
+    scores = [r["macro_f1"] for r in on_disk]
+    if not scores:
+        print("no completed seeds on disk; nothing to summarise")
+        return 1
+
     summary = {
         "strategy": strategy,
-        "seeds": [r["seed"] for r in runs],
+        "seeds": [r["seed"] for r in on_disk],
         "macro_f1_mean": round(statistics.mean(scores), 4),
         "macro_f1_sd": round(statistics.stdev(scores), 4) if len(scores) > 1 else 0.0,
-        "runs": runs,
+        "weighted_f1_mean": round(statistics.mean(r["weighted_f1"] for r in on_disk), 4),
+        "ece_mean": round(statistics.mean(r["ece"] for r in on_disk), 4),
+        "per_class_f1_mean": {
+            label: round(statistics.mean(r["per_class_f1"][label] for r in on_disk), 4)
+            for label in labels
+        },
+        "per_class_f1_sd": {
+            label: (
+                round(statistics.stdev(r["per_class_f1"][label] for r in on_disk), 4)
+                if len(on_disk) > 1
+                else 0.0
+            )
+            for label in labels
+        },
+        "runs": on_disk,
     }
     (ARTIFACTS / f"summary_{tag}.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8"
